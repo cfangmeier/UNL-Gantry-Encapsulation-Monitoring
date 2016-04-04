@@ -12,6 +12,7 @@ Orient3d = collections.namedtuple("Orient3d", "x,y,z,q")
 
 def load_logfiles(full_zipfile_name):
     fullzf = zipfile.ZipFile(full_zipfile_name)
+    date_re = re.compile('Config-(\d{4})_(\d{2})_(\d{2})-(\d{2})_(\d{2})')
     logs = []
     for zip_member in fullzf.filelist:
         zip_fname = zip_member.filename
@@ -22,7 +23,11 @@ def load_logfiles(full_zipfile_name):
         zf = zipfile.ZipFile(b)
         with zf.open("Potting.log") as f:
             log = f.read().decode('utf8')
-            logs.append((zip_fname, log))
+            dt = [int(m) for m in date_re.findall(zip_fname)[0]]
+            dt = {'year': dt[0], 'month': dt[1],
+                  'day': dt[2], 'hour': dt[3],
+                  'minute': dt[4]}
+            logs.append((zip_fname, dt, log))
     return logs
 
 
@@ -43,10 +48,12 @@ def split_sections(log):
             sec_curr_lines = []
         elif sec_curr_name:
             sec_curr_lines.append(line)
+    if sec_curr_name and sec_curr_lines:
+        sections[sec_curr_name] = sec_curr_lines
     return sections
 
 
-def parse_modules(log):
+def parse_modules(log, dt):
     def parse_tablestate(lines):
         modules = {}
         reg = re.compile("Chuck: (\d+), Slot: (\d+), S/N: (.*), State: (.*)$")
@@ -64,7 +71,8 @@ def parse_modules(log):
                                           'slot': slot,
                                           'HDI_fids': {},
                                           'BBM_fids': {},
-                                          'pot_lines': {}}
+                                          'pot_lines': {},
+                                          'date_potted': dt}
         return modules
 
     def parse_alignment(lines, modules):
@@ -116,19 +124,30 @@ def parse_modules(log):
                         'state': res[15]}
 
                 mod['pot_lines'][res[2]] = line
+
+    def parse_finish(lines, modules):
+        reg = re.compile('(Operator Name|Sylgard Batch|Pressure):(.*$)')
+        for line in lines:
+            res = reg.findall(line)
+            if res:
+                res = res[0]
+                for module in modules.values():
+                    key = res[0].lower().replace(" ", "_")
+                    module[key] = res[1].strip()
     secs = split_sections(log)
     modules = parse_tablestate(secs['Configure Tester'])
     parse_alignment(secs['Review Fiducials'], modules)
     parse_lines(secs['Pot'], modules)
+    parse_finish(secs['Finish'], modules)
     return list(modules.values())
 
 
 def main(full_zipfile_name):
     logs = load_logfiles(full_zipfile_name)
     modules = []
-    for filename, log in logs:
+    for filename, dt, log in logs:
         try:
-            mods = parse_modules(log)
+            mods = parse_modules(log, dt)
             print("parsed {} modules from {}".format(len(mods), filename))
             modules += mods
         except KeyError:
