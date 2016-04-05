@@ -22,7 +22,7 @@ def load_logfiles(full_zipfile_name):
         # Open extracted zipfile and read Potting.log into memory
         zf = zipfile.ZipFile(b)
         with zf.open("Potting.log") as f:
-            log = f.read().decode('utf8')
+            log = f.read().decode('utf8').split('\n')
             dt = [int(m) for m in date_re.findall(zip_fname)[0]]
             dt = {'year': dt[0], 'month': dt[1],
                   'day': dt[2], 'hour': dt[3],
@@ -39,7 +39,7 @@ def split_sections(log):
     sections = {}
     sec_curr_name = None
     sec_curr_lines = None
-    for line in log.split('\n'):
+    for line in log:
         res = sec_re.findall(line)
         if res:
             if sec_curr_name:
@@ -54,6 +54,16 @@ def split_sections(log):
 
 
 def parse_modules(log, dt):
+
+    def parse_time_taken():
+        from datetime import datetime
+        fmt = '%d/%m/%Y %H:%M:%S %p'
+        ts = log[0].split('>>>')[0].strip()
+        ts = datetime.strptime(ts, fmt)
+        tf = log[-2].split('>>>')[0].strip()
+        tf = datetime.strptime(tf, fmt)
+        return (tf-ts).seconds // 60
+
     def parse_tablestate(lines):
         modules = {}
         reg = re.compile("Chuck: (\d+), Slot: (\d+), S/N: (.*), State: (.*)$")
@@ -139,7 +149,8 @@ def parse_modules(log, dt):
     parse_alignment(secs['Review Fiducials'], modules)
     parse_lines(secs['Pot'], modules)
     parse_finish(secs['Finish'], modules)
-    return list(modules.values())
+    time = parse_time_taken()
+    return list(modules.values()), time
 
 
 def main(full_zipfile_name):
@@ -147,11 +158,16 @@ def main(full_zipfile_name):
     modules = []
     for filename, dt, log in logs:
         try:
-            mods = parse_modules(log, dt)
+            mods, time = parse_modules(log, dt)
+            time //= len(mods)
+            for mod in mods:
+                mod['time'] = time
             print("parsed {} modules from {}".format(len(mods), filename))
             modules += mods
         except KeyError:
             print("file: {} Has invalid format, skipping...".format(filename))
+            # import traceback
+            # print(traceback.format_exc())
 
     enc = json.JSONEncoder()
     with open('Potting_Logs.json', 'w') as f:
