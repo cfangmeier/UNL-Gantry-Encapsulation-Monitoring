@@ -12,10 +12,14 @@ Orient3d = collections.namedtuple("Orient3d", "x,y,z,q")
 
 def load_logfiles(full_zipfile_name):
     fullzf = zipfile.ZipFile(full_zipfile_name)
-    date_re = re.compile('Config-(\d{4})_(\d{2})_(\d{2})-(\d{2})_(\d{2})')
-    logs = []
-    for zip_member in fullzf.filelist:
-        zip_fname = zip_member.filename
+    fname_re = re.compile('Config-(.*).zip')
+    date_re = re.compile('(\d{4})_(\d{2})_(\d{2})-(\d{2})_(\d{2})')
+    logs = collections.OrderedDict()
+    zip_fnames = [z.filename for z in fullzf.filelist]
+    for zip_fname in sorted(zip_fnames):
+        short_fname = fname_re.findall(zip_fname)[0]
+        print(zip_fname)
+        print(short_fname, '\n')
         # Extract inner zipfile
         with fullzf.open(zip_fname) as f:
             b = io.BytesIO(f.read())
@@ -27,8 +31,8 @@ def load_logfiles(full_zipfile_name):
             dt = {'year': dt[0], 'month': dt[1],
                   'day': dt[2], 'hour': dt[3],
                   'minute': dt[4]}
-            logs.append((zip_fname, dt, log))
-    return logs
+            logs[short_fname] = (short_fname, dt, log)
+    return list(logs.values())
 
 
 def split_sections(log):
@@ -89,7 +93,7 @@ def parse_modules(log, dt):
         reg_fid = re.compile(("Chuck (\d+) Slot (\d+): , "
                               "(BBM|HDI) Fiducial (.*): Source: (.*), "
                               "Image Position: ([\d.]*),([\d.]*),([\d.]*), "
-                              "Image Coordinate: ([\d.]*),([\d.]*),([\d.]*), "
+                              "Image Coor?dinate: ([\d.]*),([\d.]*),([\d.]*), "
                               "Fiducial Position: ([\d.]*),([\d.]*),([\d.]*)"))
         reg_mod = re.compile(("Chuck (\d+) Slot (\d+): , (BBM|HDI) "
                               "Center:([\d.]*),([\d.]*),([\d.]*) "
@@ -162,6 +166,7 @@ def main(full_zipfile_name):
             time //= len(mods)
             for mod in mods:
                 mod['time'] = time
+                mod['source_file'] = filename
             print("parsed {} modules from {}".format(len(mods), filename))
             modules += mods
         except KeyError:
@@ -169,7 +174,7 @@ def main(full_zipfile_name):
             # import traceback
             # print(traceback.format_exc())
 
-    enc = json.JSONEncoder()
+    enc = json.JSONEncoder(indent='  ')
     with open('Potting_Logs.json', 'w') as f:
         f.write(enc.encode(modules))
 
