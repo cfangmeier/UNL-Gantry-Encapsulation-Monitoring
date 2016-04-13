@@ -18,8 +18,6 @@ def load_logfiles(full_zipfile_name):
     zip_fnames = [z.filename for z in fullzf.filelist]
     for zip_fname in sorted(zip_fnames):
         short_fname = fname_re.findall(zip_fname)[0]
-        print(zip_fname)
-        print(short_fname, '\n')
         # Extract inner zipfile
         with fullzf.open(zip_fname) as f:
             b = io.BytesIO(f.read())
@@ -36,24 +34,20 @@ def load_logfiles(full_zipfile_name):
 
 
 def split_sections(log):
-    sec_re = re.compile(("(Configure Tester|Inspect Fiducials|"
-                         "Review Fiducials|Inspect Modules|"
-                         "Review Modules|Load Sylgard|"
-                         "Align Needle|Purge|Pot|Finish) started"))
+    sec_re = re.compile(('(Configure Tester|Inspect Fiducials|'
+                         'Review Fiducials|Inspect Modules|'
+                         'Review Modules|Load Sylgard|'
+                         'Align Needle|Purge|Pot|Finish) '
+                         'has been executed successfully'))
     sections = {}
-    sec_curr_name = None
-    sec_curr_lines = None
+    sec_curr_lines = []
     for line in log:
         res = sec_re.findall(line)
-        if res:
-            if sec_curr_name:
-                sections[sec_curr_name] = sec_curr_lines
-            sec_curr_name = res[0]
-            sec_curr_lines = []
-        elif sec_curr_name:
+        if not res:
             sec_curr_lines.append(line)
-    if sec_curr_name and sec_curr_lines:
-        sections[sec_curr_name] = sec_curr_lines
+        else:
+            sections[res[0]] = sec_curr_lines
+            sec_curr_lines = []
     return sections
 
 
