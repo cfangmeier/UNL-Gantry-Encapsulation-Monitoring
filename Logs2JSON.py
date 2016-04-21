@@ -5,12 +5,17 @@ import sys
 import json
 import zipfile
 import collections
+import openpyxl
 
 Vec3d = collections.namedtuple("Vec3d", "x,y,z")
 Orient3d = collections.namedtuple("Orient3d", "x,y,z,q")
 
 
-def load_logfiles(full_zipfile_name):
+def load_gluing_logs():
+    pass
+
+
+def load_potting_logs(full_zipfile_name):
     fullzf = zipfile.ZipFile(full_zipfile_name)
     fname_re = re.compile('Config-(.*).zip')
     date_re = re.compile('(\d{4})_(\d{2})_(\d{2})-(\d{2})_(\d{2})')
@@ -52,7 +57,6 @@ def split_sections(log):
 
 
 def parse_modules(log, dt):
-
     def parse_time_taken():
         from datetime import datetime
         fmt = '%d/%m/%Y %H:%M:%S %p'
@@ -152,7 +156,7 @@ def parse_modules(log, dt):
 
 
 def main(full_zipfile_name):
-    logs = load_logfiles(full_zipfile_name)
+    logs = load_potting_logs(full_zipfile_name)
     modules = []
     for filename, dt, log in logs:
         try:
