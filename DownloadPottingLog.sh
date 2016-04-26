@@ -26,9 +26,9 @@ function to_txt {
 if [ "$#" -eq 1 ]; then
     echo "Potting logs"
     # make archive and copy files over
-    # archive $1 "Potting_Logs.zip" "*_Config-*-*-*.zip"
-    # archive $1 "Gluing_Logs.zip" "*glueing_report__*-*-*_*_*.doc"
-    # to_txt
+    archive $1 "Potting_Logs.zip" "*_Config-*-*-*.zip"
+    archive $1 "Gluing_Logs.zip" "*glueing_report__*-*-*_*_*.doc"
+    to_txt
 fi
 
 
