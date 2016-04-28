@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 
 
+# IMPORTANT!!!!
+# Place the following in ~/.ssh/config (uncommented
+########################################################
+# Host t3.unl.edu
+#         ControlMaster auto
+#         ControlPath ~/.ssh/sockets/ssh-socket-%r-%h-%p
+########################################################
+
+# Init ssh tunnel, leave open for 1 minute
+
 function archive {
     prefix="/home/dominguez/cfangmeier/elog_git/logbooks/SiLab_Logbook/*/"
     command="zip -uj $2 $prefix$3"
@@ -9,10 +19,9 @@ function archive {
     scp $1@t3.unl.edu:~/$2 .
 }
 
-
 function to_txt {
     mkdir docs
-    unzip Gluing_Logs.zip  -d docs
+    unzip Gluing_Logs.zip -d docs
     cd docs
     echo "Converting docs to txt, give it a minute..."
     libreoffice --convert-to txt *.doc > /dev/null
@@ -24,13 +33,12 @@ function to_txt {
 }
 
 if [ "$#" -eq 1 ]; then
-    echo "Potting logs"
+    ssh -f $1@t3.unl.edu sleep 60
     # make archive and copy files over
     archive $1 "Potting_Logs.zip" "*_Config-*-*-*.zip"
     archive $1 "Gluing_Logs.zip" "*glueing_report__*-*-*_*_*.doc"
     to_txt
 fi
-
 
 ./Logs2JSON.py Potting_Logs.zip Gluing_Logs.zip
 if [ $? -eq 0 ]
