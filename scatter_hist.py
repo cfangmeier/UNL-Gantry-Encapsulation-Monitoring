@@ -1,7 +1,7 @@
 
 
-def scatter_hist(xs, ys, fig, binwidth=1, plot_mean=False,
-                 xlabel=None, ylabel=None, **kwargs):
+def scatter_hist(xs, ys, fig, nbins=10, plot_mean=False,
+                 xlabel=None, ylabel=None, aspect='equal', **kwargs):
     import numpy as np
     from matplotlib.ticker import NullFormatter
 
@@ -14,7 +14,7 @@ def scatter_hist(xs, ys, fig, binwidth=1, plot_mean=False,
     rect_histx = [left, bottom_h, width, 0.2]
     rect_histy = [left_h, bottom, 0.2, height]
 
-    axScatter = fig.add_axes(rect_scatter)
+    axScatter = fig.add_axes(rect_scatter, adjustable='datalim', aspect=aspect)
     axHistx = fig.add_axes(rect_histx)
     axHisty = fig.add_axes(rect_histy)
 
@@ -36,25 +36,38 @@ def scatter_hist(xs, ys, fig, binwidth=1, plot_mean=False,
                "$\\mu_y={:.03f}$\n$\\sigma_y={:.03f}$")
         label = fmt.format(len(xs), mean_x, std_x, mean_y, std_y)
         fig.text(0.8, 0.78, label, fontsize=17)
+    
     if xlabel:
         axScatter.set_xlabel(xlabel)
     if ylabel:
         axScatter.set_ylabel(ylabel)
 
-    xymax = np.max([np.max(np.fabs(xs)), np.max(np.fabs(ys))])
-    lim = (int(xymax/binwidth) + 1) * binwidth
-
-    axScatter.set_xlim((-lim, lim))
-    axScatter.set_ylim((-lim, lim))
-
-    bins = np.arange(-lim, lim + binwidth, binwidth)
+    range_ = max(map(abs,axScatter.get_xlim()))*2
+    binwidth = range_ / nbins
+    bins = np.arange(-range_/2, range_/2 + binwidth, binwidth)
     axHistx.hist(xs, bins=bins)
+    
+    range_ = max(map(abs,axScatter.get_ylim()))*2
+    binwidth = range_ / nbins
+    bins = np.arange(-range_/2, range_/2 + binwidth, binwidth)
     axHisty.hist(ys, bins=bins, orientation='horizontal')
 
-    axHistx.set_xlim(axScatter.get_xlim())
-    axHisty.set_ylim(axScatter.get_ylim())
+    #needed to keep ranges in sync
+    def on_draw(*args, **kwargs):
+        hist_x = axHistx.get_xlim()
+        scat_x = axScatter.get_xlim()
+        hist_y = axHisty.get_ylim()
+        scat_y = axScatter.get_ylim()
+        def neq(rng1, rng2):
+            return rng1[0]!=rng2[0] or rng1[1]!=rng2[1]
+        if neq(hist_x,scat_x):
+            axHistx.set_xlim(axScatter.get_xlim())
+        if neq(hist_y, scat_y):
+            axHisty.set_ylim(axScatter.get_ylim())
+        
+    fig.canvas.mpl_connect('draw_event', on_draw)
+    
     xMax = axHistx.get_ylim()[1]
     yMax = axHisty.get_xlim()[1]
     axHistx.set_yticks([0, xMax//3, 2*xMax//3, xMax])
     axHisty.set_xticks([0, yMax//3, 2*yMax//3, yMax])
-    return fig
