@@ -40,7 +40,7 @@ if [ "$#" -eq 1 ]; then
     to_txt
 fi
 
-./Logs2JSON.py Potting_Logs.zip Gluing_Logs.zip
+./Logs2JSON.py --pottinglog Potting_Logs.zip --gluinglog Gluing_Logs.zip
 if [ $? -eq 0 ]
 then
     echo "Finished creating JSON file for potting data"
